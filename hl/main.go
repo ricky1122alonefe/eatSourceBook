@@ -35,5 +35,42 @@ PRunning 关联中
 Psyscall P中运行的G在进行系统调用
 Pgcstop 运行时系统需要停止调度 例如gc
 Pdead 不会再被使用  例如 系统设置减少了P的数量
-P中 可运行队列和自由队列 运行完的G 会丢入P的自由队列中  需要的时候 从自由队列获取  除非是不够 才会创建 提高服用氯
+P中 可运行队列和自由队列 运行完的G 会丢入P的自由队列中  需要的时候 从自由队列获取  除非是不够 才会创建 提高复用
 */
+
+/*
+有一个全局的G列表 runtime.allgs 新建的时候第一时间加入全局列表 集中存放当前运行时系统所有G的指针
+初始化
+初始化之后G被储存到本地的P runnext 字段中 存放新的G以求更早运行 如果当前P的runnext 已经有一个G 那么这个新建的G会被移动到该P 可运行队列的末尾
+如果队列满， G只能追加到可运行队列中
+G的状态
+Gidle 新分配 但是没有进行初始化
+Grunnable 可运行队列中等待运行
+Grunning 正在运行
+Gsyscall 执行系统调用
+Gwaiting 阻塞
+Gdead 闲置
+Gcopystack G的栈被移动 栈的扩展或者收缩
+Pdead Gdead 不同 Pdead 只能面临回收的结果 Gdead 会放入本地P或者全局自由列表，重用
+ */
+
+
+ /*
+ PMG的容器
+ 全局M列表 runtime.allm  运行时系统 存放所有M的一个单向列表
+ 全局P列表 runtime.allp	运行时系统 存放所有P的一个数组
+ 全局G列表 runtime.allg	运行时系统 存放所有G的一个切片
+ 	任何G都会存在于全局G列表中
+
+ 调度器空间的M列表 runtime.sched.midle 调度器	空闲的M的单项连标
+ 调度器空间的P列表 runtime.sched.pidle 调度器 空闲的P的单项列表
+ 调度器可运行G队列 runtime.sched.runqhead runtime.sched.runtail 可运行G的队列 头尾
+
+ 调度器G自由列表 runtime.sched.gfreestack runtime.sched.gfreenostack  单项列表
+
+ P可运行的G队列 runtime.p.runq  本地P 可运行的G的一个队列
+ 	Gdead之后优先放入本地的P的自由列表
+ P的自由G列表 runtime.p.gfree 当前P中自由G的单项连标
+ 	如果本地的自由列表空了 运行时系统会先从调度器的自由列表转移一部分G到其中
+ 	当本地的自由G列表满了 会将本地的自由G列表转移给调度器的G列表
+ */
